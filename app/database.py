@@ -29,36 +29,24 @@ def create_tables() -> None:
 
 def seed_demo_data(db) -> None:
     from app.models.user import User
+    from app.models.user_transaction import UserTransaction
     from app.models.security import Security
     from app.models.system_setting import SystemSetting
 
     def as_date(value: str) -> date:
         return date.fromisoformat(value)
-
-    normalized_admin_phone = DEMO_OFFICER_PHONE.strip().replace(" ", "").lstrip("+")
-    admin_user = db.query(User).filter(User.phone == normalized_admin_phone).first()
-    if admin_user is None:
-        admin_user = User(
-            name="Admin Officer",
-            phone=normalized_admin_phone,
-            national_id="00000000",
-            email="officer@cbk.go.ke",
-            role="Officer",
-            active=True,
-            pin=DEMO_OFFICER_PIN,
-        )
-        db.add(admin_user)
-    else:
-        admin_user.name = "Admin Officer"
-        admin_user.national_id = "00000000"
-        admin_user.email = "officer@cbk.go.ke"
-        admin_user.role = "Officer"
-        admin_user.active = True
-        admin_user.pin = DEMO_OFFICER_PIN
-
     if db.query(User).count() == 0:
         db.add_all(
             [
+                User(
+                    name="Marcus Mosaya",
+                    phone=DEMO_OFFICER_PHONE,
+                    national_id="445666",
+                    email="marcus@gmail.com",
+                    role="Officer",
+                    active=True,
+                    pin=DEMO_OFFICER_PIN,
+                    ),
                 User(
                     name="Abdiwahab Abdi",
                     phone="+254727228795",
@@ -175,6 +163,45 @@ def seed_demo_data(db) -> None:
                     target_amount=15000000000,
                     previous_rate="N/A",
                     is_active=True,
+                ),
+            ]
+        )
+
+    if db.query(UserTransaction).count() == 0:
+        users_by_name = {user.name: user for user in db.query(User).all()}
+        db.add_all(
+            [
+                UserTransaction(
+                    user_id=users_by_name["Abdiwahab Abdi"].id,
+                    debit_account_id=None,
+                    credit_account_id=users_by_name["Abdiwahab Abdi"].id,
+                    type="credit",
+                    amount=250000,
+                    note="Account top-up",
+                ),
+                UserTransaction(
+                    user_id=users_by_name["Charles Okoo"].id,
+                    debit_account_id=users_by_name["Charles Okoo"].id,
+                    credit_account_id=None,
+                    type="debit",
+                    amount=90000,
+                    note="Bid settlement",
+                ),
+                UserTransaction(
+                    user_id=users_by_name["Andrew Taboi"].id,
+                    debit_account_id=None,
+                    credit_account_id=users_by_name["Andrew Taboi"].id,
+                    type="credit",
+                    amount=180000,
+                    note="Investor funding",
+                ),
+                UserTransaction(
+                    user_id=users_by_name["David Karuiki"].id,
+                    debit_account_id=users_by_name["David Karuiki"].id,
+                    credit_account_id=None,
+                    type="debit",
+                    amount=120000,
+                    note="Withdrawal",
                 ),
             ]
         )

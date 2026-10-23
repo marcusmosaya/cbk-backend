@@ -4,7 +4,9 @@ import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./fms.db")
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+)
 APP_TITLE = os.getenv("APP_TITLE", "FMS Backend")
 APP_VERSION = os.getenv("APP_VERSION", "1.0.0")
 APP_DESCRIPTION = os.getenv(
@@ -16,7 +18,7 @@ JWT_SECRET_KEY = os.getenv(
     "dev-secret-key-change-me-please-use-32-bytes!",
 )
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
-JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "5"))
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "20"))
 SESSION_TIMEOUT_SECONDS = JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60
 
 SMTP_HOST = os.getenv("SMTP_HOST", "localhost")

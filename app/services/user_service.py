@@ -31,10 +31,17 @@ class UserService:
         if not phone:
             raise HTTPException(status_code=400, detail="Phone number is required")
 
+        role = str(data.get("role") or "Investor").strip()
+        if role.lower() == "officer":
+            data["role"] = "Officer"
+        elif role.lower() == "investor":
+            data["role"] = "Investor"
+        else:
+            raise HTTPException(status_code=400, detail="Role must be either 'Officer' or 'Investor'")
+
         data["phone"] = phone
         data["national_id"] = str(data.get("national_id", "")).strip()
         data["email"] = str(data.get("email", "")).strip().lower()
-        data["role"] = str(data.get("role") or "Investor").strip() or "Investor"
         data["active"] = bool(data.get("active", True))
 
         if self.repository.get_by_phone(phone):
@@ -50,7 +57,13 @@ class UserService:
         if "email" in data and data["email"] is not None:
             data["email"] = str(data["email"]).strip().lower()
         if "role" in data and data["role"] is not None:
-            data["role"] = str(data["role"]).strip() or "Investor"
+            role = str(data["role"]).strip()
+            if role.lower() == "officer":
+                data["role"] = "Officer"
+            elif role.lower() == "investor":
+                data["role"] = "Investor"
+            else:
+                raise HTTPException(status_code=400, detail="Role must be either 'Officer' or 'Investor'")
         return self.repository.update(user, data)
 
     def deactivate_user(self, user_id: int):

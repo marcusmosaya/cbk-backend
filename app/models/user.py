@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from sqlalchemy import Boolean, String
 from sqlalchemy.orm import Mapped, mapped_column
-
+from sqlalchemy.dialects.mysql import BIGINT
 from app.database import Base
 
 
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    id: Mapped[int] = mapped_column(BIGINT(unsigned=True), primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     phone: Mapped[str] = mapped_column(String(32), unique=True, index=True, nullable=False)
     national_id: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)

@@ -21,8 +21,10 @@ app.add_middleware(
 @app.on_event("startup")
 def startup_event() -> None:
     create_tables()
+    print("Database tables created successfully.")
     db = next(get_db())
     seed_demo_data(db)
+    print("Demo data seeded successfully.")
 
 
 app.include_router(api_router, prefix="/api/v1")

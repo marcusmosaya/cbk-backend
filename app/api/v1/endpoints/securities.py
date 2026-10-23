@@ -14,11 +14,27 @@ router = APIRouter(prefix="/securities", tags=["securities"])
 
 @router.get("")
 def list_securities(
+    page: int = 1,
+    limit: int = 5,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     del current_user
-    return SecurityService(db).list_securities()
+    items = SecurityService(db).list_securities()
+    page = max(1, page)
+    limit = max(1, min(limit, 100))
+    total = len(items)
+    offset = (page - 1) * limit
+    paged_items = items[offset:offset + limit]
+    return {
+        "items": paged_items,
+        "page": page,
+        "limit": limit,
+        "total": total,
+        "total_pages": max(1, (total + limit - 1) // limit) if total else 1,
+        "has_next": offset + limit < total,
+        "has_prev": page > 1,
+    }
 
 
 @router.get("/{security_id}")

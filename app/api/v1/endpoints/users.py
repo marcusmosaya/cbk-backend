@@ -14,11 +14,27 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 @router.get("")
 def list_users(
+    page: int = 1,
+    limit: int = 5,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
     del current_user
-    return UserService(db).list_users()
+    items = UserService(db).list_users()
+    page = max(1, page)
+    limit = max(1, min(limit, 100))
+    total = len(items)
+    offset = (page - 1) * limit
+    paged_items = items[offset:offset + limit]
+    return {
+        "items": paged_items,
+        "page": page,
+        "limit": limit,
+        "total": total,
+        "total_pages": max(1, (total + limit - 1) // limit) if total else 1,
+        "has_next": offset + limit < total,
+        "has_prev": page > 1,
+    }
 
 
 @router.get("/{user_id}")

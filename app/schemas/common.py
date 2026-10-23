@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, EmailStr, Field
 
 
@@ -18,7 +20,7 @@ class UserCreate(BaseModel):
     phone: str
     national_id: str
     email: EmailStr
-    role: str = "Investor"
+    role: Literal["Officer", "Investor"] = "Investor"
     active: bool = True
 
 
@@ -27,7 +29,7 @@ class UserUpdate(BaseModel):
     phone: str | None = None
     national_id: str | None = None
     email: EmailStr | None = None
-    role: str | None = None
+    role: Literal["Officer", "Investor"] | None = None
     active: bool | None = None
 
 
@@ -56,7 +58,9 @@ class BidCreate(BaseModel):
 
 class BalanceTopUp(BaseModel):
     user_id: int
-    amount: float = Field(..., gt=0)
+    amount: float
+    transaction_type: Literal["credit", "debit"] = "credit"
+    note: str | None = None
 
 
 class SystemSettingsUpdate(BaseModel):

@@ -12,13 +12,20 @@ class BalanceRepository:
     def get_for_user(self, user_id: int) -> UserBalance | None:
         return self.db.query(UserBalance).filter(UserBalance.user_id == user_id).first()
 
-    def top_up(self, user_id: int, amount: float) -> UserBalance:
+    def adjust(self, user_id: int, amount: float, transaction_type: str = "credit") -> UserBalance:
         balance = self.get_for_user(user_id)
+        signed_amount = float(amount)
+        if str(transaction_type).lower() == "debit":
+            signed_amount = -abs(float(amount))
+        else:
+            signed_amount = abs(float(amount))
+
         if balance is None:
-            balance = UserBalance(user_id=user_id, amount=amount)
+            balance = UserBalance(user_id=user_id, amount=signed_amount)
             self.db.add(balance)
         else:
-            balance.amount += amount
+            balance.amount += signed_amount
+
         self.db.commit()
         self.db.refresh(balance)
         return balance
