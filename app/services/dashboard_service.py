@@ -17,10 +17,16 @@ class DashboardService:
         self.balances = BalanceRepository(db)
 
     def get_overview(self):
-        users = self.users.get_all()
+        users = [
+            user for user in self.users.get_all()
+            if (user.name or "").strip() != "Pesanexa Main Account"
+        ]
         securities = self.securities.get_all()
         bids = self.bids.get_all()
-        balances = self.balances.get_all()
+        balances = [
+            balance for balance in self.balances.get_all()
+            if (balance.user and (balance.user.name or "").strip()) != "Pesanexa Main Account"
+        ]
 
         total_balance = sum(balance.amount for balance in balances)
         return {

@@ -6,12 +6,13 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
+    "postgresql://postgres:postgres?@localhost:5432/pesanexa"
 )
-APP_TITLE = os.getenv("APP_TITLE", "FMS Backend")
+APP_TITLE = os.getenv("APP_TITLE", "Pesanexa Backend")
 APP_VERSION = os.getenv("APP_VERSION", "1.0.0")
 APP_DESCRIPTION = os.getenv(
     "APP_DESCRIPTION",
-    "FastAPI backend for the FMS dashboard and auction workflows.",
+    "FastAPI backend for the Pesanexa dashboard and auction workflows.",
 )
 JWT_SECRET_KEY = os.getenv(
     "JWT_SECRET_KEY",
@@ -28,5 +29,5 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
 SMTP_FROM_EMAIL = os.getenv("SMTP_FROM_EMAIL", "no-reply@local.test")
 SMTP_USE_TLS = os.getenv("SMTP_USE_TLS", "false").lower() == "true"
 
-DEMO_OFFICER_PHONE = os.getenv("DEMO_OFFICER_PHONE", "2547000000000")
+DEMO_OFFICER_PHONE = os.getenv("DEMO_OFFICER_PHONE", "254113523551")
 DEMO_OFFICER_PIN = os.getenv("DEMO_OFFICER_PIN", "1234")

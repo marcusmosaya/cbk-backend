@@ -7,6 +7,7 @@ from app.api.v1.endpoints.auth import get_current_user
 from app.database import get_db
 from app.models.user import User
 from app.schemas.common import SecurityCreate
+from app.services.activity_log_service import record_activity
 from app.services.security_service import SecurityService
 
 router = APIRouter(prefix="/securities", tags=["securities"])
@@ -53,8 +54,16 @@ def create_security(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    del current_user
-    return SecurityService(db).create_security(payload.model_dump())
+    created = SecurityService(db).create_security(payload.model_dump())
+    record_activity(
+        db,
+        current_user,
+        action="create",
+        entity_type="security",
+        entity_id=created.id if hasattr(created, "id") else None,
+        description=f"Created security {payload.name}.",
+    )
+    return created
 
 
 @router.put("/{security_id}")
@@ -64,8 +73,16 @@ def update_security(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    del current_user
-    return SecurityService(db).update_security(security_id, payload.model_dump())
+    updated = SecurityService(db).update_security(security_id, payload.model_dump())
+    record_activity(
+        db,
+        current_user,
+        action="update",
+        entity_type="security",
+        entity_id=security_id,
+        description=f"Updated security ID {security_id} ({payload.name}).",
+    )
+    return updated
 
 
 @router.patch("/{security_id}/toggle")
@@ -74,5 +91,13 @@ def toggle_security(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    del current_user
-    return SecurityService(db).toggle_security(security_id)
+    updated = SecurityService(db).toggle_security(security_id)
+    record_activity(
+        db,
+        current_user,
+        action="toggle",
+        entity_type="security",
+        entity_id=security_id,
+        description=f"Toggled security ID {security_id} status.",
+    )
+    return updated

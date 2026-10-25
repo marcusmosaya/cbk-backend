@@ -14,14 +14,27 @@ from app.config import (
 )
 from app.database import get_db
 from app.models.user import User
+from app.models.user_account_restriction import UserAccountRestriction
 from app.schemas.common import AuthResponse, StatusMessage
+from app.services.activity_log_service import record_activity
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 security = HTTPBearer()
 
 
 def normalize_phone(raw_phone: str) -> str:
-    return raw_phone.strip().replace(" ", "").lstrip("+")
+    digits = (raw_phone or "").strip().replace(" ", "").replace("-", "").lstrip("+")
+    if not digits:
+        return ""
+    if digits.startswith("254") and len(digits) == 12:
+        return digits
+    if digits.startswith("0") and len(digits) == 10:
+        return "254" + digits[1:]
+    if len(digits) == 9 and digits[0] in "71":
+        return "254" + digits
+    if digits.startswith("254") and len(digits) == 13:
+        return digits
+    return digits
 
 
 def create_access_token(subject: str) -> str:
@@ -63,13 +76,50 @@ class LoginPyload(BaseModel):
 
 @router.post("/login", response_model=AuthResponse)
 def login(login_payload: LoginPyload, db: Session = Depends(get_db)) -> AuthResponse:
-    user = db.query(User).filter(User.phone == login_payload.phone).first()
-    print(f"Attempting login for phone: {login_payload.phone}, user found: {user}")
+    normalized_phone = normalize_phone(login_payload.phone)
+    user = db.query(User).filter(User.phone == normalized_phone).first()
+    print(f"Attempting login for phone: {normalized_phone}, user found: {user}")
     if user and user.pin != login_payload.pin:
+        record_activity(
+            db,
+            user,
+            action="login_failed",
+            entity_type="auth",
+            description=f"{user.name} failed portal login with a wrong PIN.",
+        )
         raise HTTPException(status_code=401, detail="Incorrect phone or pin.")
     if user is None:
         raise HTTPException(status_code=401, detail="Incorrect phone or pin.")
-    token = create_access_token(login_payload.phone)
+
+    restriction = db.query(UserAccountRestriction).filter(UserAccountRestriction.user_id == user.id).first()
+    if not user.active:
+        record_activity(
+            db,
+            user,
+            action="login_failed",
+            entity_type="auth",
+            description=f"{user.name} failed portal login because the account is inactive.",
+        )
+        raise HTTPException(status_code=403, detail="Account is inactive.")
+    if restriction and not restriction.can_login:
+        reason = restriction.reason or "Login is restricted by an officer."
+        record_activity(
+            db,
+            user,
+            action="login_failed",
+            entity_type="auth",
+            description=f"{user.name} failed portal login: {reason}",
+        )
+        raise HTTPException(status_code=403, detail=reason)
+
+    token = create_access_token(normalized_phone)
+    record_activity(
+        db,
+        user,
+        action="login",
+        entity_type="auth",
+        description=f"{user.name} signed in to the portal.",
+    )
     return AuthResponse(
         success=True,
         message="Login successful",

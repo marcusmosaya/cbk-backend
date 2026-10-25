@@ -20,6 +20,7 @@ class UserCreate(BaseModel):
     phone: str
     national_id: str
     email: EmailStr
+    pin: str = "0000"
     role: Literal["Officer", "Investor"] = "Investor"
     active: bool = True
 
@@ -63,8 +64,51 @@ class BalanceTopUp(BaseModel):
     note: str | None = None
 
 
+class SystemAccountAdjustment(BaseModel):
+    amount: float
+    transaction_type: Literal["credit", "debit"] = "credit"
+    note: str | None = None
+
+
+class UserAccountRestrictionUpdate(BaseModel):
+    can_login: bool = True
+    can_withdraw: bool = True
+    reason: str | None = None
+
+
 class SystemSettingsUpdate(BaseModel):
     inactivity_days: int = Field(..., ge=1, le=3650)
     run_hour: int = Field(..., ge=0, le=23)
     run_minute: int = Field(..., ge=0, le=59)
     auto_deactivation_enabled: bool = True
+
+
+class ActivityLogEntry(BaseModel):
+    id: int
+    user_id: int
+    user_name: str
+    action: str
+    entity_type: str
+    entity_id: int | None = None
+    description: str
+    created_at: str | None = None
+
+
+class UssdSessionStart(BaseModel):
+    phone: str
+    session_id: str | None = None
+
+
+class UssdInput(BaseModel):
+    phone: str
+    input: str
+
+
+class UssdMenuCreate(BaseModel):
+    code: str
+    title: str
+    description: str | None = None
+    parent_code: str | None = None
+    sequence: int = 1
+    is_active: bool = True
+    content: str | None = None

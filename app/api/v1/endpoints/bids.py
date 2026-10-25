@@ -7,6 +7,7 @@ from app.api.v1.endpoints.auth import get_current_user
 from app.database import get_db
 from app.models.user import User
 from app.schemas.common import BidCreate
+from app.services.activity_log_service import record_activity
 from app.services.bid_service import BidService
 
 router = APIRouter(prefix="/bids", tags=["bids"])
@@ -53,8 +54,16 @@ def create_bid(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    del current_user
-    return BidService(db).create_bid(payload.model_dump())
+    created = BidService(db).create_bid(payload.model_dump())
+    record_activity(
+        db,
+        current_user,
+        action="create",
+        entity_type="bid",
+        entity_id=created.id if hasattr(created, "id") else None,
+        description=f"Submitted bid for {payload.instrument_name}.",
+    )
+    return created
 
 
 @router.patch("/{bid_id}/status")
@@ -64,8 +73,16 @@ def update_bid_status(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    del current_user
-    return BidService(db).update_bid_status(bid_id, status)
+    updated = BidService(db).update_bid_status(bid_id, status)
+    record_activity(
+        db,
+        current_user,
+        action="status_update",
+        entity_type="bid",
+        entity_id=bid_id,
+        description=f"Updated bid status to {status}.",
+    )
+    return updated
 
 
 @router.patch("/{bid_id}/settle")
@@ -75,5 +92,13 @@ def settle_bid(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    del current_user
-    return BidService(db).settle_bid(bid_id, status)
+    updated = BidService(db).settle_bid(bid_id, status)
+    record_activity(
+        db,
+        current_user,
+        action="settle",
+        entity_type="bid",
+        entity_id=bid_id,
+        description=f"Settled bid ID {bid_id} with status {status}.",
+    )
+    return updated

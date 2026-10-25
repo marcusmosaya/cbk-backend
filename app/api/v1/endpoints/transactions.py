@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.database import get_db
+from app.database import get_db, get_or_create_system_account
 from app.repositories.transaction_repository import TransactionRepository
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
@@ -27,6 +27,7 @@ def list_transactions(
     db: Session = Depends(get_db),
 ):
     transactions = TransactionRepository(db).get_all()
+    system_account = get_or_create_system_account(db)
     page = max(1, page)
     limit = max(1, min(limit, 100))
     total = len(transactions)
@@ -47,6 +48,13 @@ def list_transactions(
                 "credit_account_name": tx.credit_account.name if tx.credit_account else None,
                 "user_name": tx.user.name if tx.user else "Unknown",
                 "date": tx.created_at.isoformat(),
+                "system_account_effect": (
+                    "Bank debit: cash increases | Customer deposit liability: increases"
+                    if tx.debit_account_id == system_account.id and tx.credit_account_id == tx.user_id
+                    else "Bank credit: cash decreases | Customer deposit liability: decreases"
+                    if tx.debit_account_id == tx.user_id and tx.credit_account_id == system_account.id
+                    else "Internal transfer effect: no direct system account movement"
+                ),
             }
             for tx in paged_transactions
         ],

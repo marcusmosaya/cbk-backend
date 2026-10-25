@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, String
-from sqlalchemy.dialects.mysql import BIGINT
+from sqlalchemy import BigInteger, DateTime, Float, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -12,7 +11,7 @@ from app.database import Base
 class UserTransaction(Base):
     __tablename__ = "user_transactions"
 
-    id: Mapped[int] = mapped_column(BIGINT(unsigned=True), primary_key=True, index=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     debit_account_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
     credit_account_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)

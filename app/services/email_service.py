@@ -10,11 +10,11 @@ class EmailService:
     @staticmethod
     def send_pin_email(to_email: str, pin: str) -> dict[str, str | bool]:
         message = EmailMessage()
-        message["Subject"] = "Your FMS Access PIN"
+        message["Subject"] = "Your Pesanexa Access PIN"
         message["From"] = SMTP_FROM_EMAIL
         message["To"] = to_email
         message.set_content(
-            f"Your FMS PIN is: {pin}\n\n"
+            f"Your Pesanexa PIN is: {pin}\n\n"
             "Use it to complete the authentication flow in the system."
         )
 

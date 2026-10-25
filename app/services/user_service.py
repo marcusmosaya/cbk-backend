@@ -15,7 +15,18 @@ class UserService:
     def normalize_phone(raw_phone: str | None) -> str:
         if raw_phone is None:
             return ""
-        return str(raw_phone).strip().replace(" ", "").lstrip("+")
+        digits = str(raw_phone).strip().replace(" ", "").replace("-", "").lstrip("+")
+        if not digits:
+            return ""
+        if digits.startswith("254") and len(digits) == 12:
+            return digits
+        if digits.startswith("0") and len(digits) == 11:
+            return "254" + digits[1:]
+        if len(digits) == 10 and digits[0] in "71":
+            return "254" + digits
+        if digits.startswith("254") and len(digits) == 13:
+            return digits
+        return digits
 
     def list_users(self):
         return self.repository.get_all()
