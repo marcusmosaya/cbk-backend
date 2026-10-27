@@ -225,7 +225,7 @@ class UssdService:
     def handle_request(self, session_id: str | None, service_code: str | None, phone_number: str | None, text: str | None):
 
         normalized_phone = self.normalize_phone(phone_number or "")
-        if not phone_number:
+        if not normalized_phone:
             return "END Invalid phone number.", "phone_error"
 
         if session_id:
@@ -235,7 +235,7 @@ class UssdService:
 
         if session is None:
             session = self.repository.create_session(
-                phone=phone_number,
+                phone=normalized_phone,
                 session_id=session_id or f"ussd-{uuid.uuid4().hex[:12]}",
                 state="pin_entry",
                 menu_code="pin_entry",
@@ -243,15 +243,21 @@ class UssdService:
 
         current_text = (text or "").strip()
 
-        if current_text in {"", "default"}:
-            self.repository.update_session(session, state="pin_entry", menu_code="pin_entry", last_input="")
-            return "CON Welcome to Pesanexa\nEnter your PIN:", "pin_entry"
-
-        user = self.db.query(User).filter(User.phone == phone_number).first()
+        user = self.db.query(User).filter(User.phone == normalized_phone).first()
         if user is None:
             return "END Phone number not registered.", "phone_error"
 
+        restriction = self.db.query(UserAccountRestriction).filter(UserAccountRestriction.user_id == user.id).first()
+
+        if current_text in {"", "default"}:
+            if restriction is not None and not restriction.can_ussd:
+                return f"END USSD access is restricted. {restriction.reason or 'Contact support.'}", "ussd_blocked"
+            self.repository.update_session(session, state="pin_entry", menu_code="pin_entry", last_input="")
+            return "CON Welcome to Pesanexa\nEnter your PIN:", "pin_entry"
+
         if session.state == "pin_entry":
+            if restriction is not None and not restriction.can_ussd:
+                return f"END USSD access is restricted. {restriction.reason_ussd or restriction.reason or 'Contact support.'}", "ussd_blocked"
             if user.pin != current_text:
                 self.repository.update_session(session, state="pin_entry", menu_code="pin_entry", last_input=current_text)
                 self._log_ussd_action(
@@ -381,52 +387,71 @@ class UssdService:
             if amount <= 0:
                 return "CON Enter amount to deposit.\n0. Back", "wallet_deposit_amount"
 
-            balance_record = self.db.query(UserBalance).filter(UserBalance.user_id == user.id).first()
-            if balance_record is None:
-                balance_record = UserBalance(user_id=user.id, amount=0.0)
-                self.db.add(balance_record)
-                self.db.flush()
+            restriction = self.db.query(UserAccountRestriction).filter(UserAccountRestriction.user_id == user.id).first()
+            if restriction is not None:
+                if not restriction.can_deposit:
+                    return f"END Deposits are restricted. {restriction.reason or 'Contact support.'}", "deposit_blocked"
+                if restriction.min_deposit > 0 and amount < restriction.min_deposit:
+                    return f"END Minimum deposit is KES {restriction.min_deposit:,.2f}.", "deposit_blocked"
+                if restriction.max_deposit > 0 and amount > restriction.max_deposit:
+                    return f"END Maximum deposit is KES {restriction.max_deposit:,.2f}.", "deposit_blocked"
 
-            system_account = get_or_create_system_account(self.db)
-            system_balance_record = self.db.query(UserBalance).filter(UserBalance.user_id == system_account.id).first()
-            if system_balance_record is None:
-                system_balance_record = UserBalance(user_id=system_account.id, amount=0.0)
-                self.db.add(system_balance_record)
-                self.db.flush()
+            # Trigger Daraja STK Push to the user's phone
+            from app.services.daraja_service import DarajaService
+            from app.models.pending_deposit import PendingDeposit
+            daraja = DarajaService()
+            token = daraja.get_access_token()
+            if not token.get("success"):
+                return "END M-Pesa deposit service is temporarily unavailable. Try again later.", "deposit_error"
 
-            balance_record.amount += amount
-            system_balance_record.amount += amount
-            self.db.add(
-                UserTransaction(
-                    user_id=user.id,
-                    debit_account_id=system_account.id,
-                    credit_account_id=user.id,
-                    type="credit",
-                    amount=amount,
-                    note="Wallet deposit",
-                    reference=f"DEPOSIT-{user.id}-{uuid.uuid4().hex[:8]}",
-                )
+            reference = f"DEP-USSD-{user.id}-{uuid.uuid4().hex[:8].upper()}"
+            result = daraja.stk_push(
+                phone=user.phone,
+                amount=amount,
+                account_reference=reference,
+                transaction_desc=f"Deposit for {user.name}",
+                access_token=token.get("access_token"),
             )
-            self.db.add(
-                UserTransaction(
-                    user_id=system_account.id,
-                    debit_account_id=system_account.id,
-                    credit_account_id=user.id,
-                    type="debit",
-                    amount=amount,
-                    note=f"System account debited | User account credited {user.id}",
-                    reference=f"SYSTEM-DEPOSIT-{user.id}-{uuid.uuid4().hex[:8]}",
-                )
+
+            checkout_request_id = result.get("CheckoutRequestID", "")
+            merchant_request_id = result.get("MerchantRequestID", "")
+
+            pending = PendingDeposit(
+                user_id=user.id,
+                amount=amount,
+                phone=user.phone,
+                checkout_request_id=checkout_request_id,
+                merchant_request_id=merchant_request_id,
+                reference=reference,
+                status="pending",
+                daraja_response=str(result),
             )
+            self.db.add(pending)
+            self.db.flush()
+
+            self.repository.create_log(
+                phone=user.phone,
+                request_data=f"deposit:{amount}",
+                response_data=str(result),
+                session_id=session.id,
+                request_type="deposit_initiated",
+            )
+            self.repository.update_session(session, state="deposit_pending", menu_code="deposit_pending", last_input=str(amount))
             self.db.commit()
-            self._log_ussd_action(
-                user,
-                "deposit",
-                f"{user.name} deposited KES {amount:,.2f} via USSD.",
-                entity_id=user.id,
-            )
-            self.repository.update_session(session, state="main_menu", menu_code="main_menu", last_input=str(amount))
-            return f"END Deposit successful. New wallet balance is KES {balance_record.amount:,.2f}.", "wallet_deposit_end"
+
+            if str(result.get("ResponseCode")) == "0":
+                return (
+                    f"CON Deposit request sent to {user.phone}.\n"
+                    f"Amount: KES {amount:,.2f}\n"
+                    f"Reference: {reference}\n"
+                    "Complete the payment on your phone.\n"
+                    "0. Back"
+                ), "deposit_pending"
+            else:
+                return (
+                    f"END Deposit request failed: {result.get('CustomerMessage', 'Unknown error')}",
+                    "deposit_error",
+                )
 
         if session.state == "wallet_transfer_phone":
             if current_text == "0":
@@ -459,9 +484,11 @@ class UssdService:
                 return f"CON Enter amount to transfer to {session.last_input or 'recipient'}.\n0. Back", "wallet_transfer_amount"
 
             restriction = self.db.query(UserAccountRestriction).filter(UserAccountRestriction.user_id == user.id).first()
-            if restriction and not restriction.can_withdraw:
-                reason = restriction.reason or "Withdrawal is restricted by an officer."
+            if restriction and not restriction.can_transfer:
+                reason = restriction.reason or "Transfer is restricted by an officer."
                 return f"END Transfer blocked. {reason}", "wallet_transfer_blocked"
+            if restriction is not None and restriction.max_transfer > 0 and amount > restriction.max_transfer:
+                return f"END Maximum transfer is KES {restriction.max_transfer:,.2f}.", "wallet_transfer_blocked"
 
             source_balance = self.db.query(UserBalance).filter(UserBalance.user_id == user.id).first()
             if source_balance is None:
@@ -539,6 +566,11 @@ class UssdService:
             if restriction and not restriction.can_withdraw:
                 reason = restriction.reason or "Withdrawal is restricted by an officer."
                 return f"END Withdrawal blocked. {reason}", "wallet_withdraw_blocked"
+            if restriction is not None:
+                if restriction.min_withdraw > 0 and amount < restriction.min_withdraw:
+                    return f"END Minimum withdrawal is KES {restriction.min_withdraw:,.2f}.", "wallet_withdraw_blocked"
+                if restriction.max_withdraw > 0 and amount > restriction.max_withdraw:
+                    return f"END Maximum withdrawal is KES {restriction.max_withdraw:,.2f}.", "wallet_withdraw_blocked"
 
             balance_record = self.db.query(UserBalance).filter(UserBalance.user_id == user.id).first()
             available_balance = float(balance_record.amount) if balance_record else 0.0

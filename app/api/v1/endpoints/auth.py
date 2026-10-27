@@ -79,7 +79,13 @@ def login(login_payload: LoginPyload, db: Session = Depends(get_db)) -> AuthResp
     normalized_phone = normalize_phone(login_payload.phone)
     user = db.query(User).filter(User.phone == normalized_phone).first()
     print(f"Attempting login for phone: {normalized_phone}, user found: {user}")
+
+    restriction = db.query(UserAccountRestriction).filter(UserAccountRestriction.user_id == user.id).first() if user else None
+
     if user and user.pin != login_payload.pin:
+        if restriction is not None:
+            restriction.failed_login_attempts = (restriction.failed_login_attempts or 0) + 1
+            db.commit()
         record_activity(
             db,
             user,
@@ -91,7 +97,18 @@ def login(login_payload: LoginPyload, db: Session = Depends(get_db)) -> AuthResp
     if user is None:
         raise HTTPException(status_code=401, detail="Incorrect phone or pin.")
 
-    restriction = db.query(UserAccountRestriction).filter(UserAccountRestriction.user_id == user.id).first()
+    if restriction is not None:
+        if restriction.failed_login_attempts >= restriction.failed_login_threshold:
+            reason = restriction.reason or "Account locked due to too many failed login attempts."
+            record_activity(
+                db,
+                user,
+                action="login_failed",
+                entity_type="auth",
+                description=f"{user.name} failed portal login: {reason}",
+            )
+            raise HTTPException(status_code=403, detail=reason)
+
     if not user.active:
         record_activity(
             db,
@@ -101,8 +118,8 @@ def login(login_payload: LoginPyload, db: Session = Depends(get_db)) -> AuthResp
             description=f"{user.name} failed portal login because the account is inactive.",
         )
         raise HTTPException(status_code=403, detail="Account is inactive.")
-    if restriction and not restriction.can_login:
-        reason = restriction.reason or "Login is restricted by an officer."
+    if restriction and not restriction.can_portal_login:
+        reason = restriction.reason or "Portal login is restricted by an officer."
         record_activity(
             db,
             user,
@@ -111,6 +128,25 @@ def login(login_payload: LoginPyload, db: Session = Depends(get_db)) -> AuthResp
             description=f"{user.name} failed portal login: {reason}",
         )
         raise HTTPException(status_code=403, detail=reason)
+
+    if restriction is not None:
+        restriction.failed_login_attempts = 0
+        db.commit()
+
+    token = create_access_token(normalized_phone)
+    record_activity(
+        db,
+        user,
+        action="login",
+        entity_type="auth",
+        description=f"{user.name} signed in to the portal.",
+    )
+    return AuthResponse(
+        success=True,
+        message="Login successful",
+        token=token,
+        expires_in=JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    )
 
     token = create_access_token(normalized_phone)
     record_activity(

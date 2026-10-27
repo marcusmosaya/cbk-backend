@@ -116,11 +116,38 @@ def get_user_restrictions(
     del current_user
     restriction = db.query(UserAccountRestriction).filter(UserAccountRestriction.user_id == user_id).first()
     if restriction is None:
-        return {"user_id": user_id, "can_login": True, "can_withdraw": True, "reason": None}
+        return {
+            "user_id": user_id,
+            "can_login": True,
+            "can_withdraw": True,
+            "can_deposit": True,
+            "can_transfer": True,
+            "can_ussd": True,
+            "can_portal_login": True,
+            "min_deposit": 0.0,
+            "max_deposit": 0.0,
+            "min_withdraw": 0.0,
+            "max_withdraw": 0.0,
+            "max_transfer": 0.0,
+            "failed_login_attempts": 0,
+            "failed_login_threshold": 5,
+            "reason": None,
+        }
     return {
         "user_id": user_id,
         "can_login": restriction.can_login,
         "can_withdraw": restriction.can_withdraw,
+        "can_deposit": restriction.can_deposit,
+        "can_transfer": restriction.can_transfer,
+        "can_ussd": restriction.can_ussd,
+        "can_portal_login": restriction.can_portal_login,
+        "min_deposit": restriction.min_deposit,
+        "max_deposit": restriction.max_deposit,
+        "min_withdraw": restriction.min_withdraw,
+        "max_withdraw": restriction.max_withdraw,
+        "max_transfer": restriction.max_transfer,
+        "failed_login_attempts": restriction.failed_login_attempts,
+        "failed_login_threshold": restriction.failed_login_threshold,
         "reason": restriction.reason,
     }
 
@@ -142,12 +169,32 @@ def update_user_restrictions(
             user_id=user_id,
             can_login=payload.can_login,
             can_withdraw=payload.can_withdraw,
+            can_deposit=payload.can_deposit,
+            can_transfer=payload.can_transfer,
+            can_ussd=payload.can_ussd,
+            can_portal_login=payload.can_portal_login,
+            min_deposit=payload.min_deposit,
+            max_deposit=payload.max_deposit,
+            min_withdraw=payload.min_withdraw,
+            max_withdraw=payload.max_withdraw,
+            max_transfer=payload.max_transfer,
+            failed_login_threshold=payload.failed_login_threshold,
             reason=payload.reason or "Account restricted by officer.",
         )
         db.add(restriction)
     else:
         restriction.can_login = payload.can_login
         restriction.can_withdraw = payload.can_withdraw
+        restriction.can_deposit = payload.can_deposit
+        restriction.can_transfer = payload.can_transfer
+        restriction.can_ussd = payload.can_ussd
+        restriction.can_portal_login = payload.can_portal_login
+        restriction.min_deposit = payload.min_deposit
+        restriction.max_deposit = payload.max_deposit
+        restriction.min_withdraw = payload.min_withdraw
+        restriction.max_withdraw = payload.max_withdraw
+        restriction.max_transfer = payload.max_transfer
+        restriction.failed_login_threshold = payload.failed_login_threshold
         restriction.reason = payload.reason or restriction.reason or "Account restricted by officer."
 
     db.commit()
@@ -158,12 +205,26 @@ def update_user_restrictions(
         action="restrict",
         entity_type="user_restriction",
         entity_id=user_id,
-        description=f"Updated account restrictions for user ID {user_id}: login={restriction.can_login}, withdraw={restriction.can_withdraw}.",
+        description=f"Updated account restrictions for user ID {user_id}: "
+                    f"login={restriction.can_login}, withdraw={restriction.can_withdraw}, "
+                    f"deposit={restriction.can_deposit}, transfer={restriction.can_transfer}, "
+                    f"ussd={restriction.can_ussd}, portal_login={restriction.can_portal_login}.",
     )
     return {
         "user_id": user_id,
         "can_login": restriction.can_login,
         "can_withdraw": restriction.can_withdraw,
+        "can_deposit": restriction.can_deposit,
+        "can_transfer": restriction.can_transfer,
+        "can_ussd": restriction.can_ussd,
+        "can_portal_login": restriction.can_portal_login,
+        "min_deposit": restriction.min_deposit,
+        "max_deposit": restriction.max_deposit,
+        "min_withdraw": restriction.min_withdraw,
+        "max_withdraw": restriction.max_withdraw,
+        "max_transfer": restriction.max_transfer,
+        "failed_login_attempts": restriction.failed_login_attempts,
+        "failed_login_threshold": restriction.failed_login_threshold,
         "reason": restriction.reason,
     }
 

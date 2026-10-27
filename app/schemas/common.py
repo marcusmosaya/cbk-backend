@@ -73,7 +73,23 @@ class SystemAccountAdjustment(BaseModel):
 class UserAccountRestrictionUpdate(BaseModel):
     can_login: bool = True
     can_withdraw: bool = True
+    can_deposit: bool = True
+    can_transfer: bool = True
+    can_ussd: bool = True
+    can_portal_login: bool = True
+    min_deposit: float = 0.0
+    max_deposit: float = 0.0
+    min_withdraw: float = 0.0
+    max_withdraw: float = 0.0
+    max_transfer: float = 0.0
+    failed_login_threshold: int = 5
     reason: str | None = None
+    reason_login: str | None = None
+    reason_withdraw: str | None = None
+    reason_deposit: str | None = None
+    reason_transfer: str | None = None
+    reason_ussd: str | None = None
+    reason_portal_login: str | None = None
 
 
 class SystemSettingsUpdate(BaseModel):

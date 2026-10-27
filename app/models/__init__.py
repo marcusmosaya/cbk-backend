@@ -9,6 +9,8 @@ from app.models.user_transaction import UserTransaction
 from app.models.ussd_log import UssdLog
 from app.models.ussd_menu import UssdMenu
 from app.models.ussd_session import UssdSession
+from app.models.withdrawal_request import WithdrawalRequest
+from app.models.pending_deposit import PendingDeposit
 
 __all__ = [
     "User",
@@ -22,4 +24,6 @@ __all__ = [
     "UssdSession",
     "UssdMenu",
     "UssdLog",
+    "WithdrawalRequest",
+    "PendingDeposit",
 ]
