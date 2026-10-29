@@ -5,7 +5,8 @@ import json
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
-from app.database import get_db
+from app.database import get_db, get_or_create_system_account
+from app.models.deposit_request import DepositRequest
 from app.models.pending_deposit import PendingDeposit
 from app.models.user import User
 from app.models.user_transaction import UserTransaction
@@ -19,13 +20,15 @@ router = APIRouter(prefix="/daraja/callback", tags=["daraja-callback"])
 
 def _process_stk_callback(db: Session, body: dict) -> dict:
     """Handle STK Push callback from Safaricom."""
-    checkout_request_id = body.get("CheckoutRequestID")
-    result_code = str(body.get("ResultCode", "1"))
+    stk_callback = body.get("Body", {}).get("stkCallback", {})
+    checkout_request_id = stk_callback.get("CheckoutRequestID")
+    result_code = str(stk_callback.get("ResultCode", "1"))
+    system_account = get_or_create_system_account(db)
 
     if not checkout_request_id:
         raise HTTPException(status_code=400, detail="Missing CheckoutRequestID")
 
-    # Try USSD deposit first
+    # Try USSD deposit (PendingDeposit) first
     pending = (
         db.query(PendingDeposit)
         .filter(PendingDeposit.checkout_request_id == checkout_request_id)
@@ -46,7 +49,7 @@ def _process_stk_callback(db: Session, body: dict) -> dict:
                 amount=pending.amount,
                 note=f"M-Pesa deposit confirmed via Daraja. Ref: {pending.reference}",
                 credit_account_id=pending.user_id,
-                debit_account_id=None,
+                debit_account_id=system_account.id,
                 reference=f"DEP-CONFIRMED-{pending.id}",
             )
             user = db.query(User).filter(User.id == pending.user_id).first()
@@ -59,7 +62,41 @@ def _process_stk_callback(db: Session, body: dict) -> dict:
         db.commit()
         return {"success": True, "status": pending.status, "source": "ussd_deposit"}
 
-    # Fall back to portal deposit (WithdrawalRequest)
+    # Try portal deposit (DepositRequest)
+    deposit = (
+        db.query(DepositRequest)
+        .filter(DepositRequest.checkout_request_id == checkout_request_id)
+        .order_by(DepositRequest.created_at.desc())
+        .first()
+    )
+
+    if deposit is not None:
+        deposit.daraja_response = json.dumps(body)
+        if result_code == "0":
+            deposit.status = "approved"
+            balance_repo = BalanceRepository(db)
+            balance_repo.adjust(deposit.credited_user_id, deposit.amount, "credit")
+            tx_repo = TransactionRepository(db)
+            tx_repo.create(
+                user_id=deposit.user_id,
+                transaction_type="credit",
+                amount=deposit.amount,
+                note=f"M-Pesa deposit confirmed via Daraja. Ref: {deposit.reference}",
+                credit_account_id=deposit.credited_user_id,
+                debit_account_id=system_account.id,
+                reference=f"DEP-CONFIRMED-{deposit.id}",
+            )
+            user = db.query(User).filter(User.id == deposit.credited_user_id).first()
+            if user and user.email:
+                EmailService.send_deposit_confirmation(
+                    user.email, deposit.amount, deposit.reference
+                )
+        else:
+            deposit.status = "failed"
+        db.commit()
+        return {"success": True, "status": deposit.status, "source": "portal_deposit"}
+
+    # Fall back to old portal deposit (WithdrawalRequest)
     request = (
         db.query(WithdrawalRequest)
         .filter(WithdrawalRequest.daraja_response.contains(checkout_request_id))
@@ -83,7 +120,7 @@ def _process_stk_callback(db: Session, body: dict) -> dict:
             amount=request.amount,
             note=f"M-Pesa deposit confirmed via Daraja. Ref: {request.reference}",
             credit_account_id=request.user_id,
-            debit_account_id=None,
+            debit_account_id=system_account.id,
             reference=f"DEP-CONFIRMED-{request.id}",
         )
         user = db.query(User).filter(User.id == request.user_id).first()

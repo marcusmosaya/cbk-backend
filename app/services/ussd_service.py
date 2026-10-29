@@ -577,51 +577,24 @@ class UssdService:
             if available_balance < amount:
                 return f"END Insufficient wallet balance. Current balance: KES {available_balance:,.2f}", "wallet_withdraw_blocked"
 
-            if balance_record is None:
-                balance_record = UserBalance(user_id=user.id, amount=0.0)
-                self.db.add(balance_record)
-                self.db.flush()
-
-            system_account = get_or_create_system_account(self.db)
-            system_balance_record = self.db.query(UserBalance).filter(UserBalance.user_id == system_account.id).first()
-            if system_balance_record is None:
-                system_balance_record = UserBalance(user_id=system_account.id, amount=0.0)
-                self.db.add(system_balance_record)
-                self.db.flush()
-
-            balance_record.amount -= amount
-            system_balance_record.amount += amount
-            self.db.add(
-                UserTransaction(
-                    user_id=user.id,
-                    debit_account_id=user.id,
-                    credit_account_id=system_account.id,
-                    type="debit",
-                    amount=amount,
-                    note="Wallet withdrawal",
-                    reference=f"WITHDRAW-{user.id}-{uuid.uuid4().hex[:8]}",
-                )
-            )
-            self.db.add(
-                UserTransaction(
-                    user_id=system_account.id,
-                    debit_account_id=user.id,
-                    credit_account_id=system_account.id,
-                    type="credit",
-                    amount=amount,
-                    note= f"System account credited | User account {user.id}",
-                    reference=f"SYSTEM-WITHDRAW-{user.id}-{uuid.uuid4().hex[:8]}",
-                )
-            )
+            # Create a pending withdrawal request instead of debiting immediately
+            from app.services.withdrawal_service import WithdrawalService
+            service = WithdrawalService(self.db)
+            request = service.create_request(user.id, amount, user.phone)
             self.db.commit()
+
             self._log_ussd_action(
                 user,
-                "withdraw",
-                f"{user.name} withdrew KES {amount:,.2f} via USSD.",
-                entity_id=user.id,
+                "withdraw_request",
+                f"{user.name} requested withdrawal of KES {amount:,.2f} via USSD. Request #{request.id}.",
+                entity_id=request.id,
             )
             self.repository.update_session(session, state="main_menu", menu_code="main_menu", last_input=str(amount))
-            return f"END Withdrawal successful. Remaining wallet balance is KES {balance_record.amount:,.2f}.", "wallet_withdraw_end"
+            return (
+                f"END Withdrawal request #{request.id} submitted for KES {amount:,.2f}.\n"
+                "Your request is pending officer approval.\n"
+                "You will be notified once processed."
+            ), "wallet_withdraw_end"
 
         if session.state == "others_menu":
             choice = current_text.strip()

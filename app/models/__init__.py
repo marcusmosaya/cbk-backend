@@ -1,4 +1,5 @@
 from app.models.bid import Bid
+from app.models.deposit_request import DepositRequest
 from app.models.security import Security
 from app.models.system_setting import SystemSetting
 from app.models.user import User
@@ -26,4 +27,5 @@ __all__ = [
     "UssdLog",
     "WithdrawalRequest",
     "PendingDeposit",
+    "DepositRequest",
 ]

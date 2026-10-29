@@ -128,3 +128,16 @@ def initiate_deposit(
         description=f"{current_user.name} initiated M-Pesa deposit of KES {amount:,.2f}.",
     )
     return result
+
+
+@router.get("/deposits")
+def list_deposits(
+    status: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    service = WithdrawalService(db)
+    is_officer = (current_user.role or "").strip().lower() in {"officer", "admin"}
+    user_id = None if is_officer else current_user.id
+    deposits = service.list_deposits(user_id=user_id, status=status)
+    return deposits
