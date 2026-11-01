@@ -17,4 +17,5 @@ def get_dashboard_overview(
     current_user: User = Depends(get_current_user),
 ):
     del current_user
+    
     return DashboardService(db).get_overview()
