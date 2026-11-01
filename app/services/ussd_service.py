@@ -441,7 +441,7 @@ class UssdService:
 
             if str(result.get("ResponseCode")) == "0":
                 return (
-                    f"CON Deposit request sent to {user.phone}.\n"
+                    f"END Deposit request sent to {user.phone}.\n"
                     f"Amount: KES {amount:,.2f}\n"
                     f"Reference: {reference}\n"
                     "Complete the payment on your phone.\n"
