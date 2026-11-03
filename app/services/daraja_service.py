@@ -58,7 +58,7 @@ class DarajaService:
         access_token: str | None = None,
     ) -> dict:
         url = f"{self.base_url}/mpesa/stkpush/v1/processrequest"
-        callback_url = os.getenv("DARAJA_CALLBACK_URL", "https://state-salvage-visa.ngrok-free.dev/api/v1/daraja/callback/stk")
+        callback_url = os.getenv("DARAJA_CALLBACK_URL", "https://api-pesanexa.onrender.com/api/v1/daraja/callback/stk")
         print(self._normalize_phone(phone), "phone", phone)
         payload = {
             "BusinessShortCode": business_short_code or os.getenv("DARAJA_BUSINESS_SHORT_CODE", "174379"),
