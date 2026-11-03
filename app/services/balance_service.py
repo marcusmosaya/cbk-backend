@@ -19,42 +19,58 @@ class BalanceService:
     def get_balances(self):
         return self.repository.get_all()
 
-    def adjust_balance(self, user_id: int, amount: float, transaction_type: str = "credit", note: str | None = None):
+    def adjust_balance(
+        self,
+        user_id: int,
+        amount: float,
+        transaction_type: str = "credit",
+        note: str | None = None,
+        balance_type: str = "real",
+    ):
         if self.user_repository.get_by_id(user_id) is None:
             raise HTTPException(status_code=404, detail="User not found")
 
         normalized_type = str(transaction_type).lower()
-        system_account = get_or_create_system_account(self.db)
+        normalized_balance_type = str(balance_type).lower()
+        if normalized_balance_type not in {"real", "artificial"}:
+            raise HTTPException(status_code=400, detail="balance_type must be 'real' or 'artificial'")
 
+        system_account = get_or_create_system_account(self.db)
         current_balance = self.repository.get_for_user(user_id)
+        bucket_name = "artificial_cash" if normalized_balance_type == "artificial" else "amount"
+        current_bucket_value = float(getattr(current_balance, bucket_name, 0.0)) if current_balance is not None else 0.0
         delta = abs(float(amount)) if normalized_type == "credit" else -abs(float(amount))
-        if current_balance is not None and current_balance.amount + delta < 0:
+        if current_balance is not None and current_bucket_value + delta < 0:
             raise HTTPException(status_code=400, detail="Insufficient balance for debit transaction")
 
-        balance = self.repository.adjust(user_id, amount, normalized_type)
-        self.repository.adjust(system_account.id, amount, normalized_type)
+        balance = self.repository.adjust(user_id, amount, normalized_type, normalized_balance_type)
+        self.repository.adjust(system_account.id, amount, normalized_type, normalized_balance_type)
 
         if normalized_type == "credit":
             self.transaction_repository.create(
                 user_id=user_id,
                 transaction_type=normalized_type,
                 amount=abs(float(amount)),
-                note=(note or "Deposit") + " | Bank debit: cash increases | Customer deposit liability: increases",
+                note=(note or "Deposit") + (
+                    " | Artificial cash: increases" if normalized_balance_type == "artificial" else " | Real cash: increases"
+                ),
                 debit_account_id=system_account.id,
                 credit_account_id=user_id,
-                reference=f"{normalized_type.upper()}-{user_id}",
+                reference=f"{normalized_type.upper()}-{user_id}-{normalized_balance_type}",
             )
         else:
             self.transaction_repository.create(
                 user_id=user_id,
                 transaction_type=normalized_type,
                 amount=abs(float(amount)),
-                note=(note or "Withdrawal") + " | Bank credit: cash decreases | Customer deposit liability: decreases",
+                note=(note or "Withdrawal") + (
+                    " | Artificial cash: decreases" if normalized_balance_type == "artificial" else " | Real cash: decreases"
+                ),
                 debit_account_id=user_id,
                 credit_account_id=system_account.id,
-                reference=f"{normalized_type.upper()}-{user_id}",
+                reference=f"{normalized_type.upper()}-{user_id}-{normalized_balance_type}",
             )
         return balance
 
-    def top_up(self, user_id: int, amount: float, transaction_type: str = "credit", note: str | None = None):
-        return self.adjust_balance(user_id, amount, transaction_type, note)
+    def top_up(self, user_id: int, amount: float, transaction_type: str = "credit", note: str | None = None, balance_type: str = "real"):
+        return self.adjust_balance(user_id, amount, transaction_type, note, balance_type)

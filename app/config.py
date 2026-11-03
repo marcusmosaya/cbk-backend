@@ -8,11 +8,11 @@ DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "postgresql://postgres:44717101mM?@localhost:5432/pesanexa"
 )
-APP_TITLE = os.getenv("APP_TITLE", "Pesanexa Backend")
+APP_TITLE = os.getenv("APP_TITLE", "Finance Sector Backend")
 APP_VERSION = os.getenv("APP_VERSION", "1.0.0")
 APP_DESCRIPTION = os.getenv(
     "APP_DESCRIPTION",
-    "FastAPI backend for the Pesanexa dashboard and auction workflows.",
+    "FastAPI backend for the Finance Sector dashboard and auction workflows.",
 )
 JWT_SECRET_KEY = os.getenv(
     "JWT_SECRET_KEY",

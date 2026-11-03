@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import uuid
 from datetime import datetime
 
@@ -17,6 +18,21 @@ from app.services.email_service import EmailService
 class WithdrawalService:
     def __init__(self, db: Session):
         self.db = db
+    @staticmethod
+    def normalize_phone(phone: str) -> str:
+        digits = (phone or "").strip().replace(" ", "").replace("-", "").lstrip("+")
+        if not digits:
+            return ""
+        
+        if digits.startswith("+"):
+            digits = digits[1:]
+
+        if re.fullmatch(r"254[17]\d{8}", digits):
+            return digits
+        
+        if re.fullmatch(r"0[17]\d{8}", digits):
+            return "254" + digits[1:]
+        return digits
 
     def create_request(self, user_id: int, amount: float, phone: str) -> WithdrawalRequest:
         user = self.db.query(User).filter(User.id == user_id).first()
@@ -99,18 +115,18 @@ class WithdrawalService:
         return {"success": True, "status": "denied", "reason": request.denial_reason}
 
     def process_stk_deposit(self, user_id: int, phone: str, amount: float) -> dict:
-        """Initiate an M-Pesa STK Push for a deposit.
-
-        The credited account is always the user whose phone number is being
-        used for the STK Push, not necessarily the caller's own account.
-        """
+       
         caller = self.db.query(User).filter(User.id == user_id).first()
         if caller is None:
             raise HTTPException(status_code=404, detail="User not found")
-
+        
         # Find the user whose phone matches the STK Push phone
-        normalized_phone = self._normalize_phone(phone)
-        target_user = self.db.query(User).filter(User.phone == normalized_phone).first()
+        normalized_phone = self.normalize_phone(phone)
+        target_user=None
+        if caller.role == "Investor":
+            target_user=caller
+        else:
+            target_user = self.db.query(User).filter(User.phone == normalized_phone).first()
         credited_user_id = target_user.id if target_user else user_id
 
         daraja = DarajaService()

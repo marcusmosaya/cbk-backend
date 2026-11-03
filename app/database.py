@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 from app.config import DATABASE_URL, DEMO_OFFICER_PHONE, DEMO_OFFICER_PIN
@@ -58,10 +58,22 @@ def get_db():
         db.close()
 
 
+def ensure_user_balance_columns() -> None:
+    with engine.begin() as connection:
+        if connection.dialect.name != "sqlite":
+            return
+
+        result = connection.execute(text("PRAGMA table_info(user_balances)"))
+        columns = {row[1] for row in result.fetchall()}
+        if "artificial_cash" not in columns:
+            connection.execute(text("ALTER TABLE user_balances ADD COLUMN artificial_cash FLOAT NOT NULL DEFAULT 0.0"))
+
+
 def create_tables() -> None:
     from app.models import __all__ as _models  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
+    ensure_user_balance_columns()
 
 
 def seed_demo_data(db) -> None:

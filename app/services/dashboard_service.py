@@ -21,13 +21,13 @@ class DashboardService:
     def get_overview(self):
         users = [
             user for user in self.users.get_all()
-            if (user.name or "").strip() != "Pesanexa Main Account"
+            if (user.name or "").strip() != "Finance Sector Main Account"
         ]
         securities = self.securities.get_all()
         bids = self.bids.get_all()
         balances = [
             balance for balance in self.balances.get_all()
-            if (balance.user and (balance.user.name or "").strip()) != "Pesanexa Main Account"
+            if (balance.user and (balance.user.name or "").strip()) != "Finance Sector Main Account"
         ]
 
         total_balance = sum(balance.amount for balance in balances)

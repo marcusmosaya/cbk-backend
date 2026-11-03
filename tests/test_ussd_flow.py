@@ -9,6 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from app.api.v1.endpoints.ussd import handle_ussd_request
 from app.database import Base
 from app.models.user import User
+from app.services.balance_service import BalanceService
 from app.services.ussd_service import UssdService
 
 
@@ -94,6 +95,16 @@ class UssdFlowTests(unittest.TestCase):
 
         response, _ = UssdService(self.db).handle_request(session_id, "*123#", "254712345678", "0")
         self.assertIn("98. Others", response)
+
+    def test_balance_service_tracks_real_and_artificial_cash_separately(self):
+        service = BalanceService(self.db)
+
+        real_balance = service.adjust_balance(self.user.id, 250.0, transaction_type="credit")
+        artificial_balance = service.adjust_balance(self.user.id, 75.0, balance_type="artificial", transaction_type="credit")
+
+        self.assertEqual(250.0, real_balance.amount)
+        self.assertEqual(75.0, artificial_balance.artificial_cash)
+        self.assertEqual(325.0, artificial_balance.total_amount)
 
 
 if __name__ == "__main__":

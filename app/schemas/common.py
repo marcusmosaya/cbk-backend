@@ -61,12 +61,14 @@ class BalanceTopUp(BaseModel):
     user_id: int
     amount: float
     transaction_type: Literal["credit", "debit"] = "credit"
+    balance_type: Literal["real", "artificial"] = "real"
     note: str | None = None
 
 
 class SystemAccountAdjustment(BaseModel):
     amount: float
     transaction_type: Literal["credit", "debit"] = "credit"
+    balance_type: Literal["real", "artificial"] = "real"
     note: str | None = None
 
 

@@ -110,8 +110,8 @@ class DarajaService:
         print(self._normalize_phone(phone),"phone",phone)
         payload = {
             "OriginatorConversationID": f"WSA{uuid.uuid4().hex[:18].upper()}",
-            "OriginatorReference": "Pesanexa Withdrawal",
-            "InitiatorName": os.getenv("DARAJA_INITIATOR_NAME", "Pesanexa"),
+            "OriginatorReference": "Finance Sector Withdrawal",
+            "InitiatorName": os.getenv("DARAJA_INITIATOR_NAME", "Finance Sector"),
             "SecurityCredential": os.getenv("DARAJA_INITIATOR_PASSWORD", ""),
             "CommandID": "BusinessPayment",
             "SenderIdentifierType": "4",
@@ -119,7 +119,7 @@ class DarajaService:
             "Amount": int(amount),
             "PartyA": os.getenv("DARAJA_BUSINESS_SHORT_CODE", "174399"),
             "PartyB": self._normalize_phone(phone),
-            "AccountReference": "Pesanexa Wallet",
+            "AccountReference": "Finance Sector Wallet",
             "Remarks": remarks,
         }
         if callback_url:

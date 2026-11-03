@@ -10,11 +10,11 @@ class EmailService:
     @staticmethod
     def send_pin_email(to_email: str, pin: str) -> dict[str, str | bool]:
         message = EmailMessage()
-        message["Subject"] = "Your Pesanexa Access PIN"
+        message["Subject"] = "Your Finance Sector Access PIN"
         message["From"] = SMTP_FROM_EMAIL
         message["To"] = to_email
         message.set_content(
-            f"Your Pesanexa PIN is: {pin}\n\n"
+            f"Your Finance Sector PIN is: {pin}\n\n"
             "Use it to complete the authentication flow in the system."
         )
 
@@ -35,15 +35,15 @@ class EmailService:
     @staticmethod
     def send_withdrawal_denial(to_email: str, amount: float, reason: str) -> dict[str, str | bool]:
         message = EmailMessage()
-        message["Subject"] = "Your Pesanexa Withdrawal Request Was Denied"
+        message["Subject"] = "Your Finance Sector Withdrawal Request Was Denied"
         message["From"] = SMTP_FROM_EMAIL
         message["To"] = to_email
         message.set_content(
-            f"Dear Pesanexa customer,\n\n"
+            f"Dear Finance Sector customer,\n\n"
             f"Your withdrawal request for KES {amount:,.2f} was denied.\n\n"
             f"Reason: {reason}\n\n"
             "Please contact support if you have questions.\n\n"
-            "Pesanexa Support"
+            "Finance Sector Support"
         )
 
         try:
@@ -63,15 +63,15 @@ class EmailService:
     @staticmethod
     def send_deposit_confirmation(to_email: str, amount: float, reference: str) -> dict[str, str | bool]:
         message = EmailMessage()
-        message["Subject"] = "Your Pesanexa Deposit Request Initiated"
+        message["Subject"] = "Your Finance Sector Deposit Request Initiated"
         message["From"] = SMTP_FROM_EMAIL
         message["To"] = to_email
         message.set_content(
-            f"Dear Pesanexa customer,\n\n"
+            f"Dear Finance Sector customer,\n\n"
             f"Your deposit request for KES {amount:,.2f} has been initiated.\n"
             f"Reference: {reference}\n\n"
             "Complete the payment on your phone when prompted.\n\n"
-            "Pesanexa Support"
+            "Finance Sector Support"
         )
 
         try:

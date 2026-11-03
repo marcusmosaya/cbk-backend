@@ -12,19 +12,26 @@ class BalanceRepository:
     def get_for_user(self, user_id: int) -> UserBalance | None:
         return self.db.query(UserBalance).filter(UserBalance.user_id == user_id).first()
 
-    def adjust(self, user_id: int, amount: float, transaction_type: str = "credit") -> UserBalance:
+    def adjust(self, user_id: int, amount: float, transaction_type: str = "credit", balance_type: str = "real") -> UserBalance:
         balance = self.get_for_user(user_id)
+        normalized_type = str(transaction_type).lower()
+        normalized_balance_type = str(balance_type).lower()
+        if normalized_balance_type not in {"real", "artificial"}:
+            raise ValueError("balance_type must be 'real' or 'artificial'")
+
         signed_amount = float(amount)
-        if str(transaction_type).lower() == "debit":
+        if normalized_type == "debit":
             signed_amount = -abs(float(amount))
         else:
             signed_amount = abs(float(amount))
 
         if balance is None:
-            balance = UserBalance(user_id=user_id, amount=signed_amount)
+            balance = UserBalance(user_id=user_id, amount=0.0, artificial_cash=0.0)
             self.db.add(balance)
-        else:
-            balance.amount += signed_amount
+
+        bucket = "artificial_cash" if normalized_balance_type == "artificial" else "amount"
+        current_bucket_value = float(getattr(balance, bucket, 0.0))
+        setattr(balance, bucket, current_bucket_value + signed_amount)
 
         self.db.commit()
         self.db.refresh(balance)
