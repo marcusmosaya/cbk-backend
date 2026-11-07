@@ -132,6 +132,12 @@ def get_user_restrictions(
             "failed_login_attempts": 0,
             "failed_login_threshold": 5,
             "reason": None,
+            "reason_login": None,
+            "reason_withdraw": None,
+            "reason_deposit": None,
+            "reason_transfer": None,
+            "reason_ussd": None,
+            "reason_portal_login": None,
         }
     return {
         "user_id": user_id,
@@ -149,6 +155,12 @@ def get_user_restrictions(
         "failed_login_attempts": restriction.failed_login_attempts,
         "failed_login_threshold": restriction.failed_login_threshold,
         "reason": restriction.reason,
+        "reason_login": restriction.reason_login,
+        "reason_withdraw": restriction.reason_withdraw,
+        "reason_deposit": restriction.reason_deposit,
+        "reason_transfer": restriction.reason_transfer,
+        "reason_ussd": restriction.reason_ussd,
+        "reason_portal_login": restriction.reason_portal_login,
     }
 
 
@@ -180,6 +192,12 @@ def update_user_restrictions(
             max_transfer=payload.max_transfer,
             failed_login_threshold=payload.failed_login_threshold,
             reason=payload.reason or "Account restricted by officer.",
+            reason_login=payload.reason_login or payload.reason,
+            reason_withdraw=payload.reason_withdraw or payload.reason,
+            reason_deposit=payload.reason_deposit or payload.reason,
+            reason_transfer=payload.reason_transfer or payload.reason,
+            reason_ussd=payload.reason_ussd or payload.reason,
+            reason_portal_login=payload.reason_portal_login or payload.reason,
         )
         db.add(restriction)
     else:
@@ -196,6 +214,12 @@ def update_user_restrictions(
         restriction.max_transfer = payload.max_transfer
         restriction.failed_login_threshold = payload.failed_login_threshold
         restriction.reason = payload.reason or restriction.reason or "Account restricted by officer."
+        restriction.reason_login = payload.reason_login if payload.reason_login is not None else payload.reason or restriction.reason_login
+        restriction.reason_withdraw = payload.reason_withdraw if payload.reason_withdraw is not None else payload.reason or restriction.reason_withdraw
+        restriction.reason_deposit = payload.reason_deposit if payload.reason_deposit is not None else payload.reason or restriction.reason_deposit
+        restriction.reason_transfer = payload.reason_transfer if payload.reason_transfer is not None else payload.reason or restriction.reason_transfer
+        restriction.reason_ussd = payload.reason_ussd if payload.reason_ussd is not None else payload.reason or restriction.reason_ussd
+        restriction.reason_portal_login = payload.reason_portal_login if payload.reason_portal_login is not None else payload.reason or restriction.reason_portal_login
 
     db.commit()
     db.refresh(restriction)
@@ -226,6 +250,12 @@ def update_user_restrictions(
         "failed_login_attempts": restriction.failed_login_attempts,
         "failed_login_threshold": restriction.failed_login_threshold,
         "reason": restriction.reason,
+        "reason_login": restriction.reason_login,
+        "reason_withdraw": restriction.reason_withdraw,
+        "reason_deposit": restriction.reason_deposit,
+        "reason_transfer": restriction.reason_transfer,
+        "reason_ussd": restriction.reason_ussd,
+        "reason_portal_login": restriction.reason_portal_login,
     }
 
 

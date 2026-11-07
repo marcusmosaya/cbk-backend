@@ -106,6 +106,32 @@ class UssdFlowTests(unittest.TestCase):
         self.assertEqual(75.0, artificial_balance.artificial_cash)
         self.assertEqual(325.0, artificial_balance.total_amount)
 
+    def test_ussd_restriction_uses_specific_reason_field(self):
+        from app.models.user_account_restriction import UserAccountRestriction
+
+        self.db.add(
+            UserAccountRestriction(
+                user_id=self.user.id,
+                can_ussd=False,
+                can_login=False,
+                reason="General restriction",
+                reason_ussd="USSD disabled for security review.",
+                reason_login="Login disabled for verification.",
+            )
+        )
+        self.db.commit()
+
+        response, state = UssdService(self.db).handle_request("session-4", "*123#", "254712345678", "")
+
+        self.assertEqual("ussd_blocked", state)
+        self.assertIn("USSD disabled for security review.", response)
+        self.assertNotIn("General restriction", response)
+
+        response, state = UssdService(self.db).handle_request("session-5", "*123#", "254712345678", "1234")
+
+        self.assertEqual("ussd_blocked", state)
+        self.assertIn("Login disabled for verification.", response)
+
 
 if __name__ == "__main__":
     unittest.main()

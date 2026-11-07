@@ -99,7 +99,7 @@ def login(login_payload: LoginPyload, db: Session = Depends(get_db)) -> AuthResp
 
     if restriction is not None:
         if restriction.failed_login_attempts >= restriction.failed_login_threshold:
-            reason = restriction.reason or "Account locked due to too many failed login attempts."
+            reason = restriction.reason_login or restriction.reason or "Account locked due to too many failed login attempts."
             record_activity(
                 db,
                 user,
@@ -119,7 +119,7 @@ def login(login_payload: LoginPyload, db: Session = Depends(get_db)) -> AuthResp
         )
         raise HTTPException(status_code=403, detail="Account is inactive.")
     if restriction and not restriction.can_portal_login:
-        reason = restriction.reason or "Portal login is restricted by an officer."
+        reason = restriction.reason_portal_login or restriction.reason or "Portal login is restricted by an officer."
         record_activity(
             db,
             user,

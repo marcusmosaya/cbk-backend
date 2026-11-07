@@ -251,7 +251,7 @@ class UssdService:
 
         if current_text in {"", "default"}:
             if restriction is not None and not restriction.can_ussd:
-                return f"END USSD access is restricted. {restriction.reason or 'Contact support.'}", "ussd_blocked"
+                return f"END USSD access is restricted. {restriction.reason_ussd or restriction.reason or 'Contact support.'}", "ussd_blocked"
             self.repository.update_session(session, state="pin_entry", menu_code="pin_entry", last_input="")
             return "CON Welcome to Finance Sector\nEnter your PIN:", "pin_entry"
 
@@ -392,7 +392,7 @@ class UssdService:
             restriction = self.db.query(UserAccountRestriction).filter(UserAccountRestriction.user_id == user.id).first()
             if restriction is not None:
                 if not restriction.can_deposit:
-                    return f"END Deposits are restricted. {restriction.reason or 'Contact support.'}", "deposit_blocked"
+                    return f"END Deposits are restricted. {restriction.reason_deposit or restriction.reason or 'Contact support.'}", "deposit_blocked"
                 if restriction.min_deposit > 0 and amount < restriction.min_deposit:
                     return f"END Minimum deposit is KES {restriction.min_deposit:,.2f}.", "deposit_blocked"
                 if restriction.max_deposit > 0 and amount > restriction.max_deposit:
@@ -486,7 +486,7 @@ class UssdService:
 
             restriction = self.db.query(UserAccountRestriction).filter(UserAccountRestriction.user_id == user.id).first()
             if restriction and not restriction.can_transfer:
-                reason = restriction.reason or "Transfer is restricted by an officer."
+                reason = restriction.reason_transfer or restriction.reason or "Transfer is restricted by an officer."
                 return f"END Transfer blocked. {reason}", "wallet_transfer_blocked"
             if restriction is not None and restriction.max_transfer > 0 and amount > restriction.max_transfer:
                 return f"END Maximum transfer is KES {restriction.max_transfer:,.2f}.", "wallet_transfer_blocked"
@@ -565,7 +565,7 @@ class UssdService:
 
             restriction = self.db.query(UserAccountRestriction).filter(UserAccountRestriction.user_id == user.id).first()
             if restriction and not restriction.can_withdraw:
-                reason = restriction.reason or "Withdrawal is restricted by an officer."
+                reason = restriction.reason_withdraw or restriction.reason or "Withdrawal is restricted by an officer."
                 return f"END Withdrawal blocked. {reason}", "wallet_withdraw_blocked"
             if restriction is not None:
                 if restriction.min_withdraw > 0 and amount < restriction.min_withdraw:

@@ -7,6 +7,7 @@ from datetime import datetime
 
 import requests
 
+import app.config as config
 
 class DarajaService:
     """Safaricom Daraja M-Pesa API client."""
@@ -18,9 +19,9 @@ class DarajaService:
         base_url: str | None = None,
         timeout: int = 30,
     ):
-        self.consumer_key = consumer_key or os.getenv("DARAJA_CONSUMER_KEY", "eY2PfjyhtwMWHYTGbUyN9xzvMTuVtJ6OKFcONGPtjjUNwc4R")
-        self.consumer_secret = consumer_secret or os.getenv("DARAJA_CONSUMER_SECRET", "5viNZLN2K5O9EYpgsMyWx8v9GgQTOV35ECNN0UTK46nC0nPFCOga36n5iSiRF3iO")
-        self.base_url = (base_url or os.getenv("DARAJA_BASE_URL", "https://sandbox.safaricom.co.ke")).rstrip("/")
+        self.consumer_key = consumer_key or  config.DARAJA_CONSUMER_KEY
+        self.consumer_secret = consumer_secret or config.DARAJA_CONSUMER_SECRET
+        self.base_url = (base_url or config.DARAJA_BASE_URL).rstrip("/")
         self.timeout = timeout
 
     def _auth_header(self) -> str:
@@ -58,16 +59,16 @@ class DarajaService:
         access_token: str | None = None,
     ) -> dict:
         url = f"{self.base_url}/mpesa/stkpush/v1/processrequest"
-        callback_url = os.getenv("DARAJA_CALLBACK_URL", "https://api-pesanexa.onrender.com/api/v1/daraja/callback/stk")
+        callback_url = config.DARAJA_CALLBACK_URL
         print(self._normalize_phone(phone), "phone", phone)
         payload = {
-            "BusinessShortCode": business_short_code or os.getenv("DARAJA_BUSINESS_SHORT_CODE", "174379"),
+            "BusinessShortCode": business_short_code or config.DARAJA_BUSINESS_SHORT_CODE,
             "Password": self._generate_password(business_short_code),
             "Timestamp": datetime.utcnow().strftime("%Y%m%d%H%M%S"),
             "TransactionType": "CustomerPayBillOnline",
             "Amount": int(amount),
             "PartyA": self._normalize_phone(phone),
-            "PartyB": business_short_code or os.getenv("DARAJA_BUSINESS_SHORT_CODE", "174379"),
+            "PartyB": business_short_code or config.DARAJA_BUSINESS_SHORT_CODE,
             "PhoneNumber": self._normalize_phone(phone),
             "AccountReference": account_reference,
             "TransactionDesc": transaction_desc,
@@ -86,7 +87,7 @@ class DarajaService:
     def stk_query(self, checkout_request_id: str, access_token: str | None = None) -> dict:
         url = f"{self.base_url}/mpesa/stkpush/v1/queryrequest"
         payload = {
-            "BusinessShortCode": os.getenv("DARAJA_BUSINESS_SHORT_CODE", "174399"),
+            "BusinessShortCode": config.DARAJA_BUSINESS_SHORT_CODE,
             "Password": self._generate_password(),
             "Timestamp": datetime.utcnow().strftime("%Y%m%d%H%M%S"),
             "CheckoutRequestID": checkout_request_id,
@@ -106,18 +107,18 @@ class DarajaService:
         access_token: str | None = None,
     ) -> dict:
         url = f"{self.base_url}/mpesa/b2c/v1/request"
-        callback_url = os.getenv("DARAJA_CALLBACK_URL", "")
+        callback_url = config.DARAJA_CALLBACK_URL
         print(self._normalize_phone(phone),"phone",phone)
         payload = {
             "OriginatorConversationID": f"WSA{uuid.uuid4().hex[:18].upper()}",
             "OriginatorReference": "Finance Sector Withdrawal",
-            "InitiatorName": os.getenv("DARAJA_INITIATOR_NAME", "Finance Sector"),
-            "SecurityCredential": os.getenv("DARAJA_INITIATOR_PASSWORD", ""),
+            "InitiatorName": config.DARAJA_INITIATOR_NAME,
+            "SecurityCredential": config.DARAJA_INITIATOR_PASSWORD,
             "CommandID": "BusinessPayment",
             "SenderIdentifierType": "4",
             "RecieverIdentifierType": "1",
             "Amount": int(amount),
-            "PartyA": os.getenv("DARAJA_BUSINESS_SHORT_CODE", "174399"),
+            "PartyA": config.DARAJA_BUSINESS_SHORT_CODE,
             "PartyB": self._normalize_phone(phone),
             "AccountReference": "Finance Sector Wallet",
             "Remarks": remarks,
