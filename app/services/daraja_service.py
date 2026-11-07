@@ -111,7 +111,7 @@ class DarajaService:
         print(self._normalize_phone(phone),"phone",phone)
         payload = {
             "OriginatorConversationID": f"WSA{uuid.uuid4().hex[:18].upper()}",
-            "OriginatorReference": "Finance Sector Withdrawal",
+            "OriginatorReference": "Financial Center Withdrawal",
             "InitiatorName": config.DARAJA_INITIATOR_NAME,
             "SecurityCredential": config.DARAJA_INITIATOR_PASSWORD,
             "CommandID": "BusinessPayment",
@@ -120,7 +120,7 @@ class DarajaService:
             "Amount": int(amount),
             "PartyA": config.DARAJA_BUSINESS_SHORT_CODE,
             "PartyB": self._normalize_phone(phone),
-            "AccountReference": "Finance Sector Wallet",
+            "AccountReference": "Financial Center Wallet",
             "Remarks": remarks,
         }
         if callback_url:

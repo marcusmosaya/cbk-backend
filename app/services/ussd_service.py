@@ -55,10 +55,10 @@ class UssdService:
         default_menus = [
             {
                 "code": "main",
-                "title": "Finance Sector USSD",
+                "title": "Financial Center USSD",
                 "description": "Main menu",
                 "sequence": 1,
-                "content": "Welcome to Finance Sector\n1. View securities\n2. My balances\n3. My bids\n4. Help",
+                "content": "Welcome to Financial Center\n1. View securities\n2. My balances\n3. My bids\n4. Help",
                 "is_active": True,
             },
             {
@@ -219,7 +219,7 @@ class UssdService:
         if menu is not None and menu.content:
             return menu.content
         if user_input is None:
-            return "Welcome to Finance Sector USSD. Please select an option.\n1. View securities\n2. My balances\n3. My bids\n4. Help"
+            return "Welcome to Financial Center USSD. Please select an option.\n1. View securities\n2. My balances\n3. My bids\n4. Help"
         return "Thank you. Your request has been received."
 
     def handle_request(self, session_id: str | None, service_code: str | None, phone_number: str | None, text: str | None):
@@ -253,7 +253,7 @@ class UssdService:
             if restriction is not None and not restriction.can_ussd:
                 return f"END USSD access is restricted. {restriction.reason_ussd or restriction.reason or 'Contact support.'}", "ussd_blocked"
             self.repository.update_session(session, state="pin_entry", menu_code="pin_entry", last_input="")
-            return "CON Welcome to Finance Sector\nEnter your PIN:", "pin_entry"
+            return "CON Welcome to Financial Center\nEnter your PIN:", "pin_entry"
 
         if session.state == "pin_entry":
             if restriction is not None and not restriction.can_ussd:
@@ -266,7 +266,7 @@ class UssdService:
                     f"{user.name} failed USSD login with an invalid PIN.",
                     entity_id=user.id,
                 )
-                return "CON Welcome to Finance Sector\nEnter your PIN:\nInvalid PIN. Please try again.", "pin_entry"
+                return "CON Welcome to Financial Center\nEnter your PIN:\nInvalid PIN. Please try again.", "pin_entry"
 
             first_name = (user.name or "Customer").split()[0]
             self.repository.update_session(session, state="main_menu", menu_code="main_menu", last_input=current_text)
@@ -277,7 +277,7 @@ class UssdService:
                 entity_id=user.id,
             )
             response = (
-                f"CON Dear {first_name}, welcome to Finance Sector\n"
+                f"CON Dear {first_name}, welcome to Financial Center\n"
                 "1. Balance Enquiry\n"
                 "2. My Wallet\n"
                 "3. Transaction History\n"
@@ -293,7 +293,7 @@ class UssdService:
 
             if choice == "0":
                 self.repository.update_session(session, state="exit", menu_code="exit", last_input=choice)
-                return "END Thank you for using Finance Sector. Goodbye.", "exit"
+                return "END Thank you for using Financial Center. Goodbye.", "exit"
 
             if choice == "1":
                 balance_record = self.db.query(UserBalance).filter(UserBalance.user_id == user.id).first()
@@ -352,7 +352,7 @@ class UssdService:
             if choice == "0":
                 self.repository.update_session(session, state="main_menu", menu_code="main_menu", last_input=choice)
                 return (
-                    f"CON Dear {(user.name or 'Customer').split()[0]}, welcome to Finance Sector\n"
+                    f"CON Dear {(user.name or 'Customer').split()[0]}, welcome to Financial Center\n"
                     "1. Balance Enquiry\n"
                     "2. My Wallet\n"
                     "3. Transaction History\n"
@@ -606,7 +606,7 @@ class UssdService:
             if choice == "0":
                 self.repository.update_session(session, state="main_menu", menu_code="main_menu", last_input=choice)
                 return (
-                    f"CON Dear {(user.name or 'Customer').split()[0]}, welcome to Finance Sector\n"
+                    f"CON Dear {(user.name or 'Customer').split()[0]}, welcome to Financial Center\n"
                     "1. Balance Enquiry\n"
                     "2. My Wallet\n"
                     "3. Transaction History\n"
