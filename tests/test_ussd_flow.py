@@ -9,6 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from app.api.v1.endpoints.ussd import handle_ussd_request
 from app.database import Base
 from app.models.user import User
+from app.models.user_balance import UserBalance
 from app.services.balance_service import BalanceService
 from app.services.ussd_service import UssdService
 
@@ -131,6 +132,45 @@ class UssdFlowTests(unittest.TestCase):
 
         self.assertEqual("ussd_blocked", state)
         self.assertIn("Login disabled for verification.", response)
+
+    def test_ussd_transfer_uses_national_id_account_number(self):
+        recipient = User(
+            name="John Smith",
+            phone="254700000001",
+            national_id="NAT-654321",
+            email="john@example.com",
+            role="Investor",
+            active=True,
+            pin="4321",
+        )
+        self.db.add(recipient)
+        self.db.commit()
+        self.db.refresh(recipient)
+
+        balance = self.db.query(UserBalance).filter(UserBalance.user_id == self.user.id).first()
+        if balance is None:
+            balance = UserBalance(user_id=self.user.id, amount=1000.0)
+            self.db.add(balance)
+        else:
+            balance.amount = 1000.0
+        self.db.commit()
+
+        service = UssdService(self.db)
+
+        response, state = service.handle_request("transfer-session-1", "*123#", "254712345678", "")
+        self.assertIn("Enter your PIN", response)
+
+        response, state = service.handle_request("transfer-session-1", "*123#", "254712345678", "1234")
+        self.assertIn("My Wallet", response)
+        self.assertIn("2. Transfer", response)
+
+        response, state = service.handle_request("transfer-session-1", "*123#", "254712345678", "2")
+        self.assertIn("Enter recipient account number", response)
+        self.assertNotIn("phone number", response.lower())
+
+        response, state = service.handle_request("transfer-session-1", "*123#", "254712345678", recipient.national_id)
+        self.assertIn("Enter amount to transfer to", response)
+        self.assertIn(recipient.national_id, response)
 
 
 if __name__ == "__main__":

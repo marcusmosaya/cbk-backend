@@ -368,7 +368,7 @@ class UssdService:
 
             if choice == "2":
                 self.repository.update_session(session, state="wallet_transfer_phone", menu_code="wallet_transfer_phone", last_input="")
-                return "CON Enter recipient phone number.\n0. Back", "wallet_transfer_phone"
+                return "CON Enter recipient account number.\n0. Back", "wallet_transfer_phone"
 
             if choice == "3":
                 self.repository.update_session(session, state="wallet_withdraw_amount", menu_code="wallet_withdraw_amount", last_input="")
@@ -459,17 +459,20 @@ class UssdService:
                 self.repository.update_session(session, state="wallet_menu", menu_code="wallet_menu", last_input="0")
                 return "CON My Wallet\n1. Deposit\n2. Transfer\n3. Withdraw\n0. Back", "wallet_menu"
 
-            recipient_phone = self.normalize_phone(current_text)
-            if recipient_phone == normalized_phone:
-                return "END You cannot transfer to your own phone number.", "wallet_transfer_error"
+            recipient_account = (current_text or "").strip()
+            if not recipient_account:
+                return "CON Enter recipient account number.\n0. Back", "wallet_transfer_phone"
 
-            recipient = self.db.query(User).filter(User.phone == recipient_phone).first()
+            if recipient_account == (user.national_id or "").strip():
+                return "END You cannot transfer to your own account number.", "wallet_transfer_error"
+
+            recipient = self.db.query(User).filter(User.national_id == recipient_account).first()
             if recipient is None:
-                print(f"Recipient phone number not found: {recipient_phone}")
-                return "END Recipient phone number not found.", "wallet_transfer_error"
+                print(f"Recipient account number not found: {recipient_account}")
+                return "END Recipient account number not found.", "wallet_transfer_error"
 
-            self.repository.update_session(session, state="wallet_transfer_amount", menu_code="wallet_transfer_amount", last_input=recipient_phone)
-            return f"CON Enter amount to transfer to {recipient_phone}.\n0. Back", "wallet_transfer_amount"
+            self.repository.update_session(session, state="wallet_transfer_amount", menu_code="wallet_transfer_amount", last_input=recipient_account)
+            return f"CON Enter amount to transfer to account {recipient_account}.\n0. Back", "wallet_transfer_amount"
 
         if session.state == "wallet_transfer_amount":
             if current_text == "0":
@@ -479,10 +482,10 @@ class UssdService:
             try:
                 amount = float(current_text)
             except ValueError:
-                return f"CON Enter amount to transfer to {session.last_input or 'recipient'}.\n0. Back", "wallet_transfer_amount"
+                return f"CON Enter amount to transfer to account {session.last_input or 'recipient'}.\n0. Back", "wallet_transfer_amount"
 
             if amount <= 0:
-                return f"CON Enter amount to transfer to {session.last_input or 'recipient'}.\n0. Back", "wallet_transfer_amount"
+                return f"CON Enter amount to transfer to account {session.last_input or 'recipient'}.\n0. Back", "wallet_transfer_amount"
 
             restriction = self.db.query(UserAccountRestriction).filter(UserAccountRestriction.user_id == user.id).first()
             if restriction and not restriction.can_transfer:
@@ -500,10 +503,10 @@ class UssdService:
             if source_balance.amount < amount:
                 return f"END Insufficient wallet balance. Current balance: KES {source_balance.amount:,.2f}", "wallet_transfer_blocked"
 
-            recipient_phone = session.last_input or ""
-            recipient = self.db.query(User).filter(User.phone == recipient_phone).first()
+            recipient_account = session.last_input or ""
+            recipient = self.db.query(User).filter(User.national_id == recipient_account).first()
             if recipient is None:
-                return "END Recipient phone number not found.", "wallet_transfer_error"
+                return "END Recipient account number not found.", "wallet_transfer_error"
 
             target_balance = self.db.query(UserBalance).filter(UserBalance.user_id == recipient.id).first()
             if target_balance is None:
@@ -522,7 +525,7 @@ class UssdService:
                     credit_account_id=recipient.id,
                     type="debit",
                     amount=amount,
-                    note=f"Wallet transfer to {recipient_phone}",
+                    note=f"Wallet transfer to account {recipient_account}",
                     reference=transfer_ref,
                 )
             )
@@ -533,7 +536,7 @@ class UssdService:
                     credit_account_id=recipient.id,
                     type="credit",
                     amount=amount,
-                    note=f"Wallet transfer from {normalized_phone}",
+                    note=f"Wallet transfer from account {user.national_id}",
                     reference=transfer_ref,
                 )
             )
@@ -541,12 +544,12 @@ class UssdService:
             self._log_ussd_action(
                 user,
                 "transfer",
-                f"{user.name} transferred KES {amount:,.2f} to {recipient_phone} via USSD.",
+                f"{user.name} transferred KES {amount:,.2f} to account {recipient_account} via USSD.",
                 entity_id=user.id,
             )
             self.repository.update_session(session, state="main_menu", menu_code="main_menu", last_input=str(amount))
             return (
-                f"END Transfer of KES {amount:,.2f} to {recipient_phone} successful. "
+                f"END Transfer of KES {amount:,.2f} to account {recipient_account} successful. "
                 f"New wallet balance: KES {source_balance.amount:,.2f}."
             ), "wallet_transfer_end"
 
